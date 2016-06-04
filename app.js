@@ -28,7 +28,11 @@ request(url, function(error, res, body) {
     h_rating[i] = $(this).children('.listing_rating').children('.rating').children('.prw_rup').children('.rate').children('img').attr('alt');
 
     //Get id of hotel
-    h_id[i] = $(this).parent().parent().parent().parent().parent().attr('id');
+    h_id[i] = $(this).parent().parent().parent().parent().parent().attr('data-locationid');
+
+    if(h_rating[i] !== undefined) {
+      h_rating[i] = Number(h_rating[i].slice(0,3));
+    }
 
     hotels[i] = {
       name : h_name[i],
@@ -48,17 +52,29 @@ request(url, function(error, res, body) {
   hotels = hotels.filter(notEmpty);
 
   console.log(hotels);
-  //SEND DATA TO JSON FILE
-  fs.writeFile('data.json', JSON.stringify(hotels, null, 2), function(err) {
-    if (err) throw err;
-    console.log('It\'s saved!');
-  });
+
 });
 
-//Express business
+//REST API
 app.listen(port);
 console.log('server is listening on', port);
 
 app.all('/', function(req, res) {
-  res.send(data);
+  res.send(JSON.stringify(hotels, null, 2));
+});
+
+app.all('/id/:id', function(q, r) {
+  var d_hotel = hotels.filter(function(hotel) {
+    return hotel.id === q.params.id;
+  });
+  r.send(d_hotel);
+});
+
+app.all('/save', function (req, res) {
+  //SEND DATA TO JSON FILE
+  fs.writeFile('data.json', JSON.stringify(hotels, null, 2), function(err) {
+    if (err) throw err;
+    console.log('Data is saved into JSON file');
+    res.sendStatus(200);
+  });
 });
