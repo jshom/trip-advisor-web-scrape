@@ -31,7 +31,12 @@ request(url, function(error, res, body) {
     h_id[i] = $(this).parent().parent().parent().parent().parent().attr('data-locationid');
 
     if(h_rating[i] !== undefined) {
-      h_rating[i] = Number(h_rating[i].slice(0,3));
+      console.log(h_rating[i].length);
+      if(h_rating[i].length > 13) {
+        h_rating[i] = Number(h_rating[i].slice(0,3).trim());
+      } else {
+      h_rating[i] = Number(h_rating[i].slice(0,2).trim());
+      }
     }
 
     hotels[i] = {
@@ -68,6 +73,20 @@ app.all('/id/:id', function(q, r) {
     return hotel.id === q.params.id;
   });
   r.send(d_hotel);
+});
+
+app.all('/rating/:rating', function(q, r) {
+  q.params.rating = Number(q.params.rating);
+  var d_hotel = hotels.filter(function(hotel) {
+    return hotel.rating == q.params.rating;
+  });
+  if(isNaN(q.params.rating)) {
+    r.send('Use numbers 0-5 only');
+  } else if (q.params.rating > 5) {
+    r.send('Use numbers 0-5 only');
+  } else {
+    r.send(d_hotel);
+  }
 });
 
 app.all('/save', function (req, res) {
