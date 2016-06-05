@@ -5,17 +5,17 @@ var cheerio = require('cheerio');
 var fs = require('fs');
 var app = express();
 var port = 8000;
+var url = 'https://www.tripadvisor.com/Hotels-g60763-oa60-New_York_City_New_York-Hotels.html#ACCOM_OVERVIEW';
 
 //INIT VARIABLES
 
 var h_name = [],
     h_rating = [],
-    h_id = [];
-
-var hotels = [];
+    h_id = [],
+    hotels = [],
+    hotel_count = 0;
 
 //GET RAW DATA FROM SOURCE
-var url = 'https://www.tripadvisor.com/Hotels-g60763-New_York_City_New_York-Hotels.html';
 request(url, function(error, res, body) {
   //LOAD BODY
   var $ = cheerio.load(body);
@@ -31,12 +31,14 @@ request(url, function(error, res, body) {
     h_id[i] = $(this).parent().parent().parent().parent().parent().attr('data-locationid');
 
     if(h_rating[i] !== undefined) {
-      console.log(h_rating[i].length);
       if(h_rating[i].length > 13) {
         h_rating[i] = Number(h_rating[i].slice(0,3).trim());
+        hotel_count++;
       } else {
-      h_rating[i] = Number(h_rating[i].slice(0,2).trim());
+        h_rating[i] = Number(h_rating[i].slice(0,2).trim());
+        hotel_count++;
       }
+      console.log('hotel-count:', hotel_count);
     }
 
     hotels[i] = {
@@ -46,18 +48,20 @@ request(url, function(error, res, body) {
     };
   });
 
-  function notEmpty(obj) {
-    if (obj.name === '') {
-      return false;
-    } else {
-      return true;
-    }
+function notEmpty(obj) {
+  if (obj.name === '') {
+    return false;
+  } else {
+    return true;
   }
+}
 
-  hotels = hotels.filter(notEmpty);
+hotels = hotels.filter(notEmpty);
 
-  console.log(hotels);
-
+console.log(hotels);
+  if(hotel_count % 31 === 0) {
+    //rerun the get data function and change url to load new page
+  }
 });
 
 //REST API
@@ -66,6 +70,7 @@ console.log('server is listening on', port);
 
 app.all('/', function(req, res) {
   res.send(JSON.stringify(hotels, null, 2));
+  console.log(hotels.length);
 });
 
 app.all('/id/:id', function(q, r) {
