@@ -3,27 +3,51 @@ var path = require('path');
 var request = require('request');
 var cheerio = require('cheerio');
 var mongoose = require('mongoose');
-var cmd = require('node-cmd');
 var fs = require('fs');
+var chalk = require('chalk');
 var app = express();
 var port = 8000;
 var url = 'https://www.tripadvisor.com/Hotels-g60763-oa60-New_York_City_New_York-Hotels.html#ACCOM_OVERVIEW';
 var user = 'jshom',
-      pswd = 'jshom';
+    pswd = 'jshom';
+var uuid = require('uuid');
 mongoose.connect('mongodb://' + user +':' + pswd + '@ds011024.mlab.com:11024/shomstein-test');
 var db = mongoose.connection;
 
-var Hotel = mongoose.model('Hotel', { name: String, rating: Number, hotel_id: Number });
+var current_time = function () {
+  var now = new Date();
+  var date = now.getDate();
+  var month = now.getMonth() + 1;
+  var year = now.getFullYear();
+  var hour = now.getHours();
+  var time = month + ' ' + date + ' ' + year + ' ' + hour;
+  return time;
+}
+
+var Hotel = mongoose.model(
+  current_time(),
+  {
+    name: String,
+    rating: Number,
+    hotel_id: Number,
+    reviews: [{
+      id : Number,
+      user : String,
+      review : String
+    }]
+  });
 
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function() {
   console.log('connected!');
+  console.log('Loading NYC Hotels');
   getDataFromPage(0);
 });
 
 var h_name = [],
     h_rating = [],
     h_id = [],
+    h_review_page = [],
     hotels = [],
     hotel_count = 0,
     list = {};
@@ -46,10 +70,12 @@ function sendHotels() {
     if(hotel.rating === undefined) {
       hotel.rating = 0;
     }
-
-    //Check if exists...
-
-    var db_hotel = new Hotel({name: hotel.name, rating: hotel.rating, hotel_id: hotel.hotel_id});
+    var db_hotel = new Hotel({
+      name: hotel.name,
+      rating: hotel.rating,
+      hotel_id: hotel.hotel_id,
+      reviews: hotel.hotel_reviews
+    });
     db_hotel.save(function (err) {
       if (err) {
         console.log(err);
@@ -57,28 +83,31 @@ function sendHotels() {
         console.log(hotel.name, ' saved');
       }
     });
-    //console.log(hotel);
-    //console.log('yes');
   });
 }
 
 function getDataFromPage(pageNum) {
   setUrl(pageNum);
-  //console.log(url);
   request(url, function(error, res, body) {
     //LOAD BODY
     var $ = cheerio.load(body);
 
     $('.listing').children().children().children().children().children().each(function(i, el) {
 
-      //Get name of hotel
-      h_name[i] = $(this).children('.listing_title').children('a').text();
+      var reviews = [];
 
       //Get rating of the hotel
       h_rating[i] = $(this).children('.listing_rating').children('.rating').children('.prw_rup').children('.rate').children('img').attr('alt');
 
       //Get id of hotel
       h_id[i] = $(this).parent().parent().parent().parent().parent().attr('data-locationid');
+
+      //Get name of hotel
+      h_name[i] = $(this).children('.listing_title').children('a').text();
+
+      //Get the reviews page
+      var hotel_resource = $(this).children('.listing_title').children('a').attr('href');
+      h_review_page[i] = 'https://tripadvisor.com' + hotel_resource;
 
       //Correct sponsored ids
       if (h_id[i] === undefined) {
@@ -90,27 +119,44 @@ function getDataFromPage(pageNum) {
       if(h_rating[i] !== undefined) {
         if(h_rating[i].length > 13) {
           h_rating[i] = Number(h_rating[i].slice(0,3).trim());
-          hotel_count++;
         } else {
           h_rating[i] = Number(h_rating[i].slice(0,2).trim());
-          hotel_count++;
         }
-        console.log('hotel-count:', hotel_count);
-      }
 
-      // TODO: GET THE COMMENTS AND SEACH FOR NEGATIVE WORKDS SUCH AS
-      /*
-      1. Towels
-      2. Service
-      3.
-      4.
-      5.
-      */
+        //Add to hotel to make sure it goes to next page after 16 hotels
+        hotel_count++;
+        console.log('hotel-count:', hotel_count);
+
+        request(h_review_page[i], function(error, res, body2) {
+          var $2 = cheerio.load(body2);
+          var el_reviews = $2('p.partial_entry');
+          el_reviews.each(function(i2, el) {
+            //Get the review text
+            var review_raw = $2(this).text().replace(/(\r\n|\n|\r|)/gm,"").replace(/(\")/gm, "'");
+            var review_user = $2(this).parent().parent().parent().parent().parent().children('.col1of2').children('.member_info').children().children('.mo').children('span').text();
+            var review_id = ($2(this).parent().parent().parent().parent().parent().parent().attr('id') + '').substring(7);
+
+            //Remove the more on string
+            if (review_raw.substring(review_raw.length - 6) === 'more ' || review_raw.substring(review_raw.length - 6) === 'more') {
+              var review_review = review_raw.substring(0, review_raw.length - 6)
+            } else {
+              var review_review = review_raw;
+            }
+            reviews[i2] = {
+              id : review_id,
+              user : review_user,
+              review : review_review
+            }
+          });
+        });
+      }
 
       hotels[i + pageNum*31] = {
         name : h_name[i],
         rating : h_rating[i],
-        hotel_id : h_id[i]
+        hotel_id : h_id[i],
+        hotel_r_page : h_review_page[i],
+        hotel_reviews : reviews
       };
     });
 
@@ -136,7 +182,7 @@ app.all('/', function(req, res) {
 
 app.all('/id/:id', function(q, r) {
   var d_hotel = hotels.filter(function(hotel) {
-    return hotel.id === q.params.id;
+    return hotel.hotel_id === q.params.id;
   });
   r.send(d_hotel);
 });
