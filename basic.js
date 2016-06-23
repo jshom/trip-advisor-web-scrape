@@ -8,6 +8,7 @@ var mongoose = require('mongoose');
 var fs = require('fs');
 var chalk = require('chalk');
 var app = express();
+app.set('json spaces', 40);
 var port = 8000;
 var url = 'https://www.tripadvisor.com/Hotels-g60763-oa60-New_York_City_New_York-Hotels.html#ACCOM_OVERVIEW';
 var user = 'jshom', pswd = 'jshom';
@@ -16,7 +17,7 @@ var db = mongoose.connection;
 
 //Loading spiner for loading hotels
 var load_spin = new Spinner(chalk.red.bold('Getting Hotels %s'));
-load_spin.setSpinnerString('.|*')
+load_spin.setSpinnerString('.|*|')
 
 var h_name = [],
     h_rating = [],
@@ -209,58 +210,60 @@ function getDataFromPage(pageNum) {
         if(h_rating[i] === undefined) {
           h_rating[i] = 0;
         }
-
         hotel_count++;
-
-        request(h_review_page[i], function(error, res, body2) {
-          var $2 = cheerio.load(body2);
-          var el_reviews = $2('p.partial_entry');
-          el_reviews.each(function(i2, el) {
-            //Get the review text
-            var review_review = $2(this)
-              .text()
-              .replace(/(\r\n|\n|\r|)/gm,"")
-              .replace(/(\"|\')/gm, "'");
-
-            var review_user = $2(this)
-              .parent()
-              .parent()
-              .parent()
-              .parent()
-              .parent()
-              .children('.col1of2')
-              .children('.member_info')
-              .children().children('.mo')
-              .children('span')
-              .text();
-
-            var review_id = ($2(this)
-              .parent()
-              .parent()
-              .parent()
-              .parent()
-              .parent()
-              .parent()
-              .attr('id') + '')
-              .substring(7);
-
-            var review_rating = Number(($2(this)
-              .parent()
-              .parent()
-              .children('.rating')
-              .children('.rating_s')
-              .children('img')
-              .attr('alt') + '')
-              .substring(0,1));
-
-            reviews[i2] = {
-              id : review_id,
-              user : review_user,
-              rating : review_rating,
-              review : review_review
+        if (true) {
+          request(h_review_page[i], function(error, res, body2) {
+            if (true) {
+              var $2 = cheerio.load(body);
             }
+            var el_reviews = $2('p.partial_entry');
+            el_reviews.each(function(i2, el) {
+              //Get the review text
+              var review_review = $2(this)
+                .text()
+                .replace(/(\r\n|\n|\r|)/gm,"")
+                .replace(/(\"|\')/gm, "'");
+
+              var review_user = $2(this)
+                .parent()
+                .parent()
+                .parent()
+                .parent()
+                .parent()
+                .children('.col1of2')
+                .children('.member_info')
+                .children().children('.mo')
+                .children('span')
+                .text();
+
+              var review_id = ($2(this)
+                .parent()
+                .parent()
+                .parent()
+                .parent()
+                .parent()
+                .parent()
+                .attr('id') + '')
+                .substring(7);
+
+              var review_rating = Number(($2(this)
+                .parent()
+                .parent()
+                .children('.rating')
+                .children('.rating_s')
+                .children('img')
+                .attr('alt') + '')
+                .substring(0,1));
+
+              reviews[i2] = {
+                id : review_id,
+                user : review_user,
+                rating : review_rating,
+                review : review_review
+              }
+            });
           });
-        });
+        }
       }
 
       hotels[i + pageNum*31] = {
@@ -283,6 +286,7 @@ function getDataFromPage(pageNum) {
       //Final edits to data
       load_spin.stop(true);
       console.log(chalk.bgRed('--edits--'));
+      hotels = hotels.sort();
       clearUndefinedRatings();
       changeHotelResponseNames();
       reviewRemoveMore();
@@ -296,8 +300,15 @@ function getDataFromPage(pageNum) {
 app.listen(port);
 console.log('server is listening on', port);
 
+app.all('/*', function(req, res, next) {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+})
+
 app.all('/', function(req, res) {
-  res.send(JSON.stringify(hotels, null, 2));
+  res.json(hotels);
   console.log(hotels.length);
 });
 
@@ -322,6 +333,12 @@ app.all('/rating/:rating', function(q, r) {
   }
 });
 
+app.all('/', function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With");
+  next();
+ });
+
 app.all('/save', function (req, res) {
   //SEND DATA TO JSON FILE
   fs.writeFile('data.json', JSON.stringify(hotels, null, 2), function(err) {
@@ -331,6 +348,13 @@ app.all('/save', function (req, res) {
   });
 });
 
+app.all('/name/:name', function(req, res) {
+  var d_hotel = hotels.filter(function(hotel) {
+    return hotel.name = decodeURI(req.params.name);
+  });
+  res.json(d_hotel[0]);
+})
+
 app.all('/filter/:text', function (req, res) {
   var d_hotel = hotels.filter(function(hotel) {
     var query = req.params.text;
@@ -338,15 +362,50 @@ app.all('/filter/:text', function (req, res) {
       return hotel.reviews[i].review.search(query) >= query.length;
     }
   }).map(function(hotel) {
-    return hotel.name + ':' + hotel.rating;
+    return {
+      name : hotel.name,
+      rating : hotel.rating,
+      reviews : hotel.reviews
+    }
   })
-  res.send(d_hotel);
+  res.json(d_hotel);
 })
 
 app.all('/first', function(req, res) {
-  res.send(hotels[0]);
+  res.json(hotels[0]);
 });
 
 app.all('/first/review', function(req, res) {
-  res.send(hotels[0].reviews[0]);
+  res.json(hotels[0].reviews[0]);
 });
+
+app.get('/query', function (req, res) {
+  var response = [];
+  var words = req.query.q;
+  words = words.split(',');
+  words.forEach(function(word) {
+    response = hotels.filter(function(hotel) {
+      hotel.reviews.forEach(function(review) {
+        return review.review.search(word) >= 0;
+      });
+    });
+  });
+  //gives back the hotels which have the queried text and only the reviews which have that
+  response.map(function(hotel) {
+    var hotel_min = {
+      name : hotel.name,
+      rating : hotel.rating,
+      reviews : hotel.reviews.filter(function(review) {
+        words.forEach(function(word) {
+          return review.search(word) >= 0;
+        })
+      })
+    };
+    return hotel_min;
+  })
+  res.json(response);
+})
+
+app.get('/testq', function (req, res) {
+  res.json(req.query.q.split(','));
+})

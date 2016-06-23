@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>UI for tripadvisor</title>
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,300' rel='stylesheet' type='text/css'>
+  <link rel="stylesheet" href="jquery.dynatable.css">
+  <link rel="stylesheet" href="quick.css">
+</head>
+<body>
+  <h1>TripAdisor Data Finder</h1>
+  <div class="hugeform">
+    <input type="text" id="search">
+    <br>
+    <div class="rad">
+      <input class="radios" type="radio" name="req_type" value="name">find by name
+      <input class="radios" type="radio" name="req_type" value="id">find by id
+      <input class="radios" type="radio" name="req_type" value="rating">find by rating
+      <br>
+      <p>*If none are selected it will give all hotels and ratings or click here</p>
+    </div>
+    <button>Go</button>
+  </div>
+  <div class="response"></div>
+  <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0/jquery.min.js'></script>
+  <script src='get.js'></script>
+</body>
+</html>

@@ -312,8 +312,9 @@ function getDataFromPage(pageNum) {
           h_rating[i] = 0;
         }
 
-        getHotelReviews(h_review_page[i]);
-
+        if (h_rating[i] && h_id[i] && h_review_page[i] && hotel_resource && h_name[i] && h_rating[i]) {
+          getHotelReviews(h_review_page[i]);
+        }
         hotel_count++;
       }
 
@@ -356,6 +357,13 @@ app.all('/', function(req, res) {
   res.send(JSON.stringify(hotels, null, 2));
   console.log(hotels.length);
 });
+
+app.all('/name/:name', function(req, res) {
+  var d_hotel = hotels.filter(function(hotel) {
+    return hotel.name = decodeURI(req.params.name);
+  });
+  res.json(d_hotel[0]);
+})
 
 app.all('/id/:id', function(q, r) {
   var d_hotel = hotels.filter(function(hotel) {
