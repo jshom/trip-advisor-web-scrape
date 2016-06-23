@@ -24,6 +24,8 @@ var h_name = [],
     h_review_page = [],
     hotels = [],
     reviews = [],
+    hotel_adrs = [],
+    hotel_certificate = [],
     hotel_count = 0;
 
 
@@ -110,6 +112,9 @@ var Hotel = mongoose.model(
   {
     name: String,
     rating: Number,
+    address: String,
+    ranking: Number,
+    certificate: Boolean,
     hotel_id: Number,
     reviews: [{
       id : Number,
@@ -148,10 +153,13 @@ var db_count = 0;
 function sendHotels() {
   hotels.forEach(function(hotel) {
     var db_hotel = new Hotel({
-      name: hotel.name,
-      rating: hotel.rating,
-      hotel_id: hotel.hotel_id,
-      reviews: hotel.reviews
+      name        : hotel.name,
+      rating      : hotel.rating,
+      address     : hotel.address,
+      ranking     : hotel.ranking,
+      certificate : hotel.certificate,
+      hotel_id    : hotel.hotel_id,
+      reviews     : hotel.reviews
     });
     db_hotel.save(function (err) {
       if (err) {
@@ -165,6 +173,23 @@ function sendHotels() {
       }
     });
   });
+}
+
+function getMetaData() {
+  if(hotel_r_page[i]) {
+    request(hotel_review_page) {
+      var $4 = cheerio.load(body);
+      hotel_adrs[i] = $4('span.street-address').first().text() + '';
+      var hasCertiicate = $4('.coeBadgeDiv').children('span.taLnk').text().trim().toUpperCase();
+      if(hasCertiicate === 'CERTIFICATE OF EXCELLENCE') {
+        hotel_certificate[i] = true;
+      } else {
+        hotel_certificate[i] = false;
+      }
+      var raw_rank = ($4('b.class').first() + '').substring(1,2);
+      hotel_ranking[i] = Number(raw_rank);
+    }
+  }
 }
 
 function changeReviewPage(o, rPageNum) {
@@ -318,9 +343,14 @@ function getDataFromPage(pageNum) {
         hotel_count++;
       }
 
+      getMetaData();
+
       hotels[i + pageNum*31] = {
         name : h_name[i],
         rating : h_rating[i],
+        address : hotel_adrs[i],
+        ranking : hotel_ranking[i],
+        certificate : hotel_certificate[i]
         hotel_id : h_id[i],
         hotel_r_page : h_review_page[i],
         reviews : reviews
