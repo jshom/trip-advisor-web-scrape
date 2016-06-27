@@ -15,7 +15,7 @@ $('button').click(function() {
   if (type === undefined) {
     $.getJSON('http://c8148890.ngrok.io/', function (data) {
       data.forEach(function(hotel) {
-        $('.response').append('<ul><li>Name: ' + hotel.name + '</li><li> Rating:' +hotel.rating+'</li><li>ID:' + hotel.hotel_id + ' </li></ul>');
+        $('.response').append('<ul><li>Name: ' + hotel.name + '</li><li> Rating:' +hotel.rating+'</li><li>ID:' + hotel.id + ' </li></ul>');
         console.log(JSON.stringify(data, null, 2));
       });
       data = [];

@@ -26,6 +26,8 @@ var h_name = [],
     reviews = [],
     hotel_adrs = [],
     hotel_certificate = [],
+    hotel_phone = [],
+
     hotel_count = 0;
 
 
@@ -115,7 +117,9 @@ var Hotel = mongoose.model(
     address: String,
     ranking: Number,
     certificate: Boolean,
-    hotel_id: Number,
+    id: Number,
+    phone: String,
+    review_count: Number,
     reviews: [{
       id : Number,
       user : String,
@@ -153,13 +157,15 @@ var db_count = 0;
 function sendHotels() {
   hotels.forEach(function(hotel) {
     var db_hotel = new Hotel({
-      name        : hotel.name,
-      rating      : hotel.rating,
-      address     : hotel.address,
-      ranking     : hotel.ranking,
-      certificate : hotel.certificate,
-      hotel_id    : hotel.hotel_id,
-      reviews     : hotel.reviews
+      name         : hotel.name,
+      rating       : hotel.rating,
+      address      : hotel.address,
+      ranking      : hotel.ranking,
+      certificate  : hotel.certificate,
+      id           : hotel.id,
+      phone        : hotel.phone,
+      review_count : hotel.reviews.length,
+      reviews      : hotel.reviews
     });
     db_hotel.save(function (err) {
       if (err) {
@@ -177,8 +183,10 @@ function sendHotels() {
 
 function getMetaData() {
   if(hotel_r_page[i]) {
-    request(hotel_review_page) {
+    request(hotel_r_page[i]) {
       var $4 = cheerio.load(body);
+
+      //Hotel address
       hotel_adrs[i] = $4('span.street-address').first().text() + '';
       var hasCertiicate = $4('.coeBadgeDiv').children('span.taLnk').text().trim().toUpperCase();
       if(hasCertiicate === 'CERTIFICATE OF EXCELLENCE') {
@@ -186,8 +194,12 @@ function getMetaData() {
       } else {
         hotel_certificate[i] = false;
       }
+
+      //Hotel Rank
       var raw_rank = ($4('b.class').first() + '').substring(1,2);
       hotel_ranking[i] = Number(raw_rank);
+
+      hotel_phone[i] = $4('.odcHotel').children('.contact_item:eq(3)').children('.fl').text() + '';
     }
   }
 }
@@ -351,15 +363,13 @@ function getDataFromPage(pageNum) {
         address : hotel_adrs[i],
         ranking : hotel_ranking[i],
         certificate : hotel_certificate[i]
-        hotel_id : h_id[i],
+        id : h_id[i],
         hotel_r_page : h_review_page[i],
         reviews : reviews
       };
     });
 
     hotels = hotels.filter(notEmpty);
-
-    //console.log('Hotels completed: ' + chalk.white.bold.bgBlack(hotels.length));
 
     if(hotel_count % 31 === 0 && pageNum <= 16) {
       getDataFromPage(pageNum+1);
