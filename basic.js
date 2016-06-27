@@ -289,6 +289,7 @@ function getDataFromPage(pageNum) {
       changeHotelResponseNames();
       reviewRemoveMore();
       sendHotels();
+      console.log(hotels);
       return;
     }
   });
