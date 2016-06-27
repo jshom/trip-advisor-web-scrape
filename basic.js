@@ -213,9 +213,7 @@ function getDataFromPage(pageNum) {
         hotel_count++;
         if (true) {
           request(h_review_page[i], function(error, res, body2) {
-            if (true) {
-              var $2 = cheerio.load(body);
-            }
+            var $2 = cheerio.load(body2);
             var el_reviews = $2('p.partial_entry');
             el_reviews.each(function(i2, el) {
               //Get the review text
@@ -316,7 +314,7 @@ app.all('/id/:id', function(q, r) {
   var d_hotel = hotels.filter(function(hotel) {
     return hotel.hotel_id === q.params.id;
   });
-  r.send(d_hotel);
+  r.send(d_hotel[0]);
 });
 
 app.all('/rating/:rating', function(q, r) {
@@ -359,7 +357,7 @@ app.all('/filter/:text', function (req, res) {
   var d_hotel = hotels.filter(function(hotel) {
     var query = req.params.text;
     for (var i = 0; i < hotel.reviews.length; i++) {
-      return hotel.reviews[i].review.search(query) >= query.length;
+      return hotel.reviews[i].review.search(query) >= 0;
     }
   }).map(function(hotel) {
     return {
